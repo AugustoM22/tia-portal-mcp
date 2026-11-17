@@ -115,7 +115,8 @@ internal static class PlcTypeImporter
                 + "a type; use update_type_content to change it.");
         }
 
-        var content = string.IsNullOrEmpty(sourceContent)
+        var createsEmpty = string.IsNullOrEmpty(sourceContent);
+        var content = createsEmpty
             ? EmptyTypeSource(address.TypeName, format)
             : sourceContent!;
 
@@ -135,7 +136,12 @@ internal static class PlcTypeImporter
                 + "create_type creates exactly the type its path names.");
         }
 
-        return ApplyAndVerify(project, address, target, address.TypeName, content, format, "create_type");
+        // A new type is used by nothing, so its verification re-exports it without compiling: an
+        // empty type never compiles ("A structure without components is not allowed").
+        var warnings = createsEmpty
+            ? new[] { $"PLC data type '{address.TypeName}' was created empty; it does not compile until it has at least one member (update_type_content)." }
+            : Array.Empty<string>();
+        return ApplyAndVerify(project, address, target, address.TypeName, content, format, "create_type", compile: false, warnings);
     }
 
     /// <summary>The external source of an empty type, as TIA Portal exports one.</summary>
@@ -159,13 +165,16 @@ internal static class PlcTypeImporter
         string typeName,
         string sourceContent,
         string format,
-        string operation)
+        string operation,
+        bool compile = true,
+        IEnumerable<string>? warnings = null)
     {
         var outcome = string.Equals(format, SourceFormatNames.Xml, StringComparison.Ordinal)
             ? ImportXml(target, sourceContent)
             : ImportSource(target, typeName, sourceContent);
 
-        var evidence = PlcTypePostconditionVerifier.BuildEvidence(project, address, format, outcome.ProjectNodeRemoved);
+        var evidence = PlcTypePostconditionVerifier.BuildEvidence(
+            project, address, format, outcome.ProjectNodeRemoved, compile, warnings);
         PlcTypePostconditionVerifier.Verify(evidence);
 
         return new PlcTypeImportResultInfo

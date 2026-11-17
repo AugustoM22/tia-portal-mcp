@@ -27,12 +27,19 @@ internal static class PlcTypePostconditionVerifier
         "A temporary external source node could not be removed and is still in the project. "
         + "Delete it in TIA Portal under the PLC's external source files.";
 
-    /// <summary>Compiles the PLC and re-exports the type, recording what it observed.</summary>
+    /// <summary>
+    /// Compiles the PLC (unless <paramref name="compile"/> is false) and re-exports the type,
+    /// recording what it observed. A newly created type is used by nothing, so it cannot break
+    /// the PLC: its creation skips the compile, which would also reject a deliberately empty type
+    /// ("A structure without components is not allowed") or fail on unrelated existing errors.
+    /// </summary>
     public static BlockPostconditionEvidence BuildEvidence(
         ProjectBase project,
         PlcTypeAddress address,
         string format,
-        bool projectNodeRemoved)
+        bool projectNodeRemoved,
+        bool compile = true,
+        IEnumerable<string>? extraWarnings = null)
     {
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (address is null) throw new ArgumentNullException(nameof(address));
@@ -43,6 +50,25 @@ internal static class PlcTypePostconditionVerifier
             warnings.Add(ResidualNodeWarning);
         }
 
+        if (extraWarnings is not null)
+        {
+            warnings.AddRange(extraWarnings);
+        }
+
+        if (compile)
+        {
+            var compileFailure = CompileFailure(project, address, warnings);
+            if (compileFailure is not null)
+            {
+                return compileFailure;
+            }
+        }
+
+        return ReExport(project, address, format, warnings);
+    }
+
+    private static BlockPostconditionEvidence? CompileFailure(ProjectBase project, PlcTypeAddress address, List<string> warnings)
+    {
         try
         {
             var report = CompileChecker.Compile(project, address.PlcName, blockPath: null);
@@ -65,6 +91,11 @@ internal static class PlcTypePostconditionVerifier
                 warnings: warnings);
         }
 
+        return null;
+    }
+
+    private static BlockPostconditionEvidence ReExport(ProjectBase project, PlcTypeAddress address, string format, List<string> warnings)
+    {
         try
         {
             var reExported = PlcTypeExporter.Export(project, address.ToDisplayPath(), format);

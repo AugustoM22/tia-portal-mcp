@@ -217,8 +217,10 @@ otherwise) and is never created. A type already at that path is refused with `va
 before any import: the operation never replaces a type. The document must declare exactly the name
 the path ends with. Omitted `content` creates an empty type from external source, as TIA Portal
 exports one; omitted content with `format=xml` is `validation_error`. No `expectedContentHash` is
-taken. The PLC is compiled and the new type re-exported, as for a type update, and the verification
-reads it back as `contentHash`. A type created in a call cannot be updated or deleted later in the
+taken. The new type is re-exported but the PLC is not compiled: a new type is used by nothing, and
+TIA Portal rejects an empty type at compile time ("A structure without components is not allowed"),
+so an empty create reports a warning that the type compiles only once it has a member. The
+verification reads the type back as `contentHash`. A type created in a call cannot be updated or deleted later in the
 same call (`validation_error`): read it after the call.
 
 `delete_type` resolves the type like `update_type_content` (missing is `target_not_found`, an
