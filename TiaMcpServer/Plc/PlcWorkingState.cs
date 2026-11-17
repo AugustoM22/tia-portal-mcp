@@ -346,6 +346,20 @@ internal sealed class PlcWorkingState
                 var address = PlcTypeAddress.Parse(item.TypePath!);
                 return Effect(item, new("Type", _plc, _device, null, null, address.TypeName, null, item.TypePath), Array.Empty<PlcFieldChange>(), null);
             }
+            case "create_type":
+            {
+                // Like every create, never checked against existing state here: the worker refuses an existing type.
+                var address = PlcTypeAddress.Parse(item.TypePath!);
+                return Effect(item, new("Type", _plc, _device, null, null, address.TypeName, null, item.TypePath),
+                    Change("name", null, address.TypeName), null);
+            }
+            case "delete_type":
+            {
+                // The planner's export resolves the type (target_not_found/target_ambiguous); the tree is not read.
+                var address = PlcTypeAddress.Parse(item.TypePath!);
+                guards.Add(Fire(DeletesType, item, $"Deleting PLC data type '{item.TypePath}' removes it; blocks and types that still use it stop compiling."));
+                return Effect(item, new("Type", _plc, _device, null, null, address.TypeName, null, item.TypePath), Array.Empty<PlcFieldChange>(), null);
+            }
             default:
                 throw new ResolutionException(WorkerFailureCategories.ValidationError, $"Unsupported PLC write operation '{item.Operation}'.");
         }

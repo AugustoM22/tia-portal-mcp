@@ -102,6 +102,30 @@ internal static partial class Program
                 PlcTypeImporter.Import(project, request.TypePath!, request.Content!, format, request.ExpectedContentHash)));
         }
 
+        public static WorkerResponse CreateType(WorkerRequest request)
+        {
+            if (string.IsNullOrEmpty(request.TypePath))
+            {
+                throw new WorkerOperationException(WorkerFailureCategories.ValidationError, "TypePath is required.");
+            }
+
+            var format = NormalizeFormat(request.Format, SourceFormatNames.Source);
+
+            return WithEngineeringRoot(request, project => Success(
+                PlcTypeImporter.Create(project, request.TypePath!, request.Content, format)));
+        }
+
+        public static WorkerResponse DeleteType(WorkerRequest request)
+        {
+            if (string.IsNullOrEmpty(request.TypePath))
+            {
+                throw new WorkerOperationException(WorkerFailureCategories.ValidationError, "TypePath is required.");
+            }
+
+            return WithEngineeringRoot(request, project => Success(
+                PlcTypeDeleter.Delete(project, request.TypePath!)));
+        }
+
         // Direct worker callers retain each operation's default: XML for blocks, source for types.
         private static string NormalizeFormat(string? format, string fallback)
         {

@@ -95,6 +95,8 @@ sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> comp
                 "get_type_content" => ExportType(request),
                 "update_block_logic" => UpdateBlock(request),
                 "update_type_content" => UpdateType(request),
+                "create_type" => CreateType(request),
+                "delete_type" => DeleteType(request),
                 "create_block" or "delete_block" or "create_block_group" or "delete_block_group" => BlockWrite(request),
                 _ => TagWrite(request),
             };
@@ -237,6 +239,37 @@ sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> comp
         {
             Operation = "update_type_content", TypePath = request.TypePath!, TypeName = type, Format = format,
             ProjectNodeRemoved = true, GeneratedObjectCount = 1,
+        });
+    }
+
+    /// <summary>Mirrors the worker's refusals: deterministic path, no existing type, declared name equals the path's.</summary>
+    private string CreateType(WorkerRequest request)
+    {
+        var address = PlcTypeAddress.Parse(request.TypePath!);
+        if (!address.IsDeterministic) Throw(WorkerFailureCategories.ValidationError, "create_type needs a deterministic path.");
+        var plc = FindPlc(address.PlcName);
+        if (plc.Types.Any(t => Names.Equals(t, address.TypeName)))
+            Throw(WorkerFailureCategories.ValidationError, $"A PLC data type already exists at '{address.ToDisplayPath()}'.");
+        var format = request.Format ?? SourceFormatNames.Source;
+        var content = request.Content ?? $"TYPE \"{address.TypeName}\"\r\nVERSION : 0.1\r\n   STRUCT\r\n   END_STRUCT;\r\n\r\nEND_TYPE\r\n";
+        if (!content.Contains($"\"{address.TypeName}\"", StringComparison.Ordinal))
+            Throw(WorkerFailureCategories.ValidationError, $"The submitted document does not declare '{address.TypeName}'.");
+        plc.Types.Add(address.TypeName);
+        _content[Key($"{plc.Software}/Types/{address.TypeName}", format)] = content;
+        return Ok(new PlcTypeImportResultInfo
+        {
+            Operation = "create_type", TypePath = address.ToDisplayPath(), TypeName = address.TypeName, Format = format,
+            ProjectNodeRemoved = true, GeneratedObjectCount = 1,
+        });
+    }
+
+    private string DeleteType(WorkerRequest request)
+    {
+        var (plc, type) = ResolveType(request.TypePath!);
+        plc.Types.Remove(type);
+        return Ok(new PlcTypeDeleteResultInfo
+        {
+            Operation = "delete_type", PlcName = plc.Software, TypePath = request.TypePath!, TypeName = type,
         });
     }
 

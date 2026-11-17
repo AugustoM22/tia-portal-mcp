@@ -95,10 +95,13 @@ public class WorkerRequest
     /// </summary>
     public string? OBEventClass { get; set; }
 
-    /// <summary>Forwarded by: get_type_content, update_type_content.</summary>
+    /// <summary>Forwarded by: get_type_content, update_type_content, create_type, delete_type.</summary>
     public string? TypePath { get; set; }
 
-    /// <summary>Forwarded by: update_block_logic, update_type_content. The document text to import.</summary>
+    /// <summary>
+    /// Forwarded by: update_block_logic, update_type_content, create_type (optional; omitted
+    /// creates an empty type). The document text to import.
+    /// </summary>
     public string? Content { get; set; }
 
     /// <summary>

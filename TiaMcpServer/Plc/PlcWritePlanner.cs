@@ -100,6 +100,8 @@ public sealed class PlcWritePlanner(OpennessWorkerClient client)
         var resolution = state.Resolve(item);
         if (resolution.Error is not null) return Fail(resolution.Error);
         var effect = resolution.Effect!;
+        if (item.Operation == "delete_type")
+            return await ResolveTypeDeletionAsync(item, state, effect, resolution.Guards).ConfigureAwait(false);
         if (item.Operation is not ("update_block_logic" or "update_type_content"))
             return new ItemOutcome(state, effect, resolution.Guards, Array.Empty<CheckedPrecondition>(), null);
         return await ResolveContentAsync(item, state, effect, resolution.Guards, budget).ConfigureAwait(false);
@@ -127,6 +129,22 @@ public sealed class PlcWritePlanner(OpennessWorkerClient client)
         if (!check.Success) return Fail(new(check.ErrorCategory!, $"Operation '{item.OperationId}': {check.Message}"));
         return new ItemOutcome(state, effect with { ContentDiff = PlcContentDiff.Build(export.Payload, item.Content!, budget) },
             guards, new[] { check.Evidence! }, null);
+    }
+
+    /// <summary>
+    /// Proves the type a delete names exists by exporting it: a miss or an ambiguous name fails the
+    /// plan, and an unreadable export is never treated as absence.
+    /// </summary>
+    private async Task<ItemOutcome> ResolveTypeDeletionAsync(PlcOperationRequest item, PlcWorkingState state,
+        PlcWriteEffect effect, IReadOnlyList<FiredGuard> guards)
+    {
+        var export = await client.GetTypeContentAsync(item.TypePath!, format: SourceFormatNames.Source).ConfigureAwait(false);
+        if (!export.Success && export.FailureCategory is WorkerFailureCategories.TargetNotFound or WorkerFailureCategories.TargetAmbiguous)
+            return Fail(new(export.FailureCategory!, $"Operation '{item.OperationId}': {export.Error}"));
+        if (export.Success) return new ItemOutcome(state, effect, guards, Array.Empty<CheckedPrecondition>(), null);
+        var unverifiable = new FiredGuard(PlcGuardDefinitions.StateUnverifiable, item.OperationId,
+            $"Operation '{item.OperationId}': the type could not be read ({export.Error}), so its existence cannot be verified.");
+        return new ItemOutcome(state, effect, guards.Append(unverifiable).ToArray(), Array.Empty<CheckedPrecondition>(), null);
     }
 
     /// <summary>D5: the selector matches a software or device name among every PLC, case-insensitively.</summary>

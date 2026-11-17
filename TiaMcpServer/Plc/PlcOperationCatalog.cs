@@ -1,5 +1,6 @@
 using TiaMcpServer.OperationBatches;
 using TiaMcpServer.Contracts.Block;
+using TiaMcpServer.Contracts.Plc;
 using TiaMcpServer.Contracts.Safety;
 using TiaMcpServer.Contracts.Shared;
 using TiaMcpServer.Contracts.Worker;
@@ -30,6 +31,9 @@ public static class PlcOperationCatalog
         // the two content updates also requiring the hash of the document they were based on.
         ["update_block_logic"] = Write(new[] { "blockPath", "content", "expectedContentHash" }, new[] { "format" }),
         ["update_type_content"] = Write(new[] { "typePath", "content", "expectedContentHash" }, new[] { "format" }),
+        // A new type has no document to have read, so no hash; omitted content creates an empty type.
+        ["create_type"] = Write(new[] { "typePath" }, new[] { "content", "format" }),
+        ["delete_type"] = Write(new[] { "typePath" }, Array.Empty<string>()),
         ["create_tag_table"] = Write(new[] { "tableName" }, new[] { "plcName", "folderPath" }),
         ["delete_tag_table"] = Write(new[] { "tableName" }, new[] { "plcName", "folderPath" }),
         ["create_tag"] = Write(new[] { "tableName", "name", "dataType" }, new[] { "plcName", "folderPath", "logicalAddress" }),
@@ -319,6 +323,7 @@ public static class PlcOperationCatalog
 
     private static void ValidateWriteCall(IReadOnlyList<PlcOperationRequest> operations, List<string> errors)
     {
+        ValidateCreatedTypes(operations, errors);
         var createdBlocks = new HashSet<string>(StringComparer.Ordinal);
         foreach (var operation in operations)
         {
@@ -337,6 +342,48 @@ public static class PlcOperationCatalog
                     $"Operation 'update_block_logic' (operationId '{operation.OperationId}'): block '{operation.BlockPath}' "
                     + "is created earlier in this call, so no content hash can exist for it. Read it after the call.");
             }
+        }
+    }
+
+    /// <summary>
+    /// A type created earlier in the call has no content hash to update against and is not yet
+    /// visible to the planning export a delete needs: both must wait for a later call.
+    /// </summary>
+    private static void ValidateCreatedTypes(IReadOnlyList<PlcOperationRequest> operations, List<string> errors)
+    {
+        var createdTypes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var operation in operations)
+        {
+            if (operation is null || string.IsNullOrWhiteSpace(operation.TypePath))
+            {
+                continue;
+            }
+
+            var key = TypeKey(operation.TypePath);
+            if (operation.Operation == "create_type")
+            {
+                createdTypes.Add(key);
+            }
+            else if (operation.Operation is "update_type_content" or "delete_type" && createdTypes.Contains(key))
+            {
+                errors.Add(
+                    $"Operation '{operation.Operation}' (operationId '{operation.OperationId}'): type '{operation.TypePath}' "
+                    + "is created earlier in this call, so it cannot be planned yet. Read it after the call.");
+            }
+        }
+    }
+
+    /// <summary>Identity of a type path by its PLC and type name, the two parts every spelling shares.</summary>
+    private static string TypeKey(string typePath)
+    {
+        try
+        {
+            var address = PlcTypeAddress.Parse(typePath);
+            return $"{address.PlcName}/{address.TypeName}".ToLowerInvariant();
+        }
+        catch (ArgumentException)
+        {
+            return typePath.Trim().ToLowerInvariant();
         }
     }
 

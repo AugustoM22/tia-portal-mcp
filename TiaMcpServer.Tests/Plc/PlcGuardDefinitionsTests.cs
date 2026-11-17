@@ -16,6 +16,7 @@ public class PlcGuardDefinitionsTests
             [PlcGuardDefinitions.StateUnverifiable] = WriteGuardSeverities.Block,
             [PlcGuardDefinitions.ObSingletonExists] = WriteGuardSeverities.Block,
             [PlcGuardDefinitions.DeletesBlock] = WriteGuardSeverities.Info,
+            [PlcGuardDefinitions.DeletesType] = WriteGuardSeverities.Info,
             [PlcGuardDefinitions.DeletesGroupContents] = WriteGuardSeverities.Info,
             [PlcGuardDefinitions.DeletesTableContents] = WriteGuardSeverities.Info,
             [PlcGuardDefinitions.AddressOverlap] = WriteGuardSeverities.Info,

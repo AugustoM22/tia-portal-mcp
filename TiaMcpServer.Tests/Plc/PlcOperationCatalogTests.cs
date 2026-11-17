@@ -449,12 +449,15 @@ public class PlcOperationCatalogTests
         ("create_block_group", new[] { "blockPath" }, Array.Empty<string>()),
         ("delete_block_group", new[] { "blockPath" }, Array.Empty<string>()),
         ("update_type_content", new[] { "typePath", "content", "expectedContentHash" }, new[] { "format" }),
+        // Added after the batch catalog retired: a new type has no hash, and content is optional.
+        ("create_type", new[] { "typePath" }, new[] { "content", "format" }),
+        ("delete_type", new[] { "typePath" }, Array.Empty<string>()),
     };
 
     [Fact]
     public void WriteSpecsKeepTheRetiredBatchFieldSets()
     {
-        Assert.Equal(14, ExpectedWriteFields.Length);
+        Assert.Equal(16, ExpectedWriteFields.Length);
         foreach (var (name, expectedRequired, expectedOptional) in ExpectedWriteFields)
         {
             Assert.True(PlcOperationCatalog.TryGetWriteFields(name, out var required, out var optional), name);
@@ -462,7 +465,7 @@ public class PlcOperationCatalogTests
             Assert.Equal(expectedOptional.OrderBy(x => x), optional.OrderBy(x => x));
         }
 
-        Assert.Equal(14, PlcOperationCatalog.WriteOperationNames.Count);
+        Assert.Equal(16, PlcOperationCatalog.WriteOperationNames.Count);
         Assert.Equal(ExpectedWriteFields.Select(e => e.Name).OrderBy(x => x), PlcOperationCatalog.WriteOperationNames.OrderBy(x => x));
     }
 

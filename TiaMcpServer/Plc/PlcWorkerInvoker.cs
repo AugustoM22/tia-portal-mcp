@@ -47,6 +47,8 @@ public static class PlcWorkerInvoker
             "update_block_logic" => InvokeUpdateBlockLogic(client, op),
             "update_type_content" => InvokeUpdateTypeContent(client, op),
             "create_tag_table" => client.CreateTagTableAsync(op.PlcName, op.TableName!, op.FolderPath),
+            "create_type" => InvokeCreateType(client, op),
+            "delete_type" => client.DeleteTypeAsync(op.TypePath!),
             "delete_tag_table" => client.DeleteTagTableAsync(op.PlcName, op.TableName!, op.FolderPath),
             "create_tag" => client.CreateTagAsync(op.PlcName, op.TableName!, op.FolderPath, op.Name!, op.DataType!, op.LogicalAddress),
             "update_tag" => client.UpdateTagAsync(op.PlcName, op.TableName!, op.FolderPath, op.Name!, op.NewName, op.DataType, op.LogicalAddress, op.ExternalAccessible, op.ExternalVisible, op.ExternalWritable),
@@ -80,6 +82,11 @@ public static class PlcWorkerInvoker
 
         return client.UpdateBlockLogicAsync(op.BlockPath!, op.Content!, format: format, expectedContentHash: op.ExpectedContentHash);
     }
+
+    private static Task<WorkerCallResult> InvokeCreateType(OpennessWorkerClient client, PlcOperationRequest op)
+        => PlcFormatNames.TryNormalize(op.Operation, op.Format, out var format, out var error)
+            ? client.CreateTypeAsync(op.TypePath!, op.Content, format: format)
+            : Task.FromResult(WorkerCallResult.Fail(WorkerFailureCategories.ValidationError, error!));
 
     private static Task<WorkerCallResult> InvokeUpdateTypeContent(OpennessWorkerClient client, PlcOperationRequest op)
         => PlcFormatNames.TryNormalize(op.Operation, op.Format, out var format, out var error)

@@ -129,6 +129,14 @@
       "applicability": "projectContent"
     },
     {
+      "operation": "create_type",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "delete_type",
+      "applicability": "projectContent"
+    },
+    {
       "operation": "create_tag_table",
       "applicability": "projectContent"
     },
@@ -359,6 +367,14 @@
       "applicability": "projectContent"
     },
     {
+      "operation": "create_type",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "delete_type",
+      "applicability": "projectContent"
+    },
+    {
       "operation": "create_tag_table",
       "applicability": "projectContent"
     },
@@ -586,6 +602,14 @@
     },
     {
       "operation": "update_type_content",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "create_type",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "delete_type",
       "applicability": "notYetDelivered"
     },
     {

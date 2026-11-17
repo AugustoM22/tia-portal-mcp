@@ -10,7 +10,8 @@ using TiaMcpServer.OpennessWorker.Worker;
 namespace TiaMcpServer.OpennessWorker.Openness.Plc;
 
 /// <summary>
-/// Updates one existing PlcType from Siemens external-source text (.udt) or Simatic ML.
+/// Updates one existing PlcType (<see cref="Import"/>) or creates one new PlcType
+/// (<see cref="Create"/>) from Siemens external-source text (.udt) or Simatic ML.
 ///
 /// <para>
 /// Strictly an update. Two refusals come before any project mutation: the type must already exist,
@@ -73,20 +74,105 @@ internal static class PlcTypeImporter
             format,
             PlcTypeExporter.Export(project, typePath, format));
 
-        // 4/5. Apply the document.
+        return ApplyAndVerify(project, address, target, targetName, sourceContent, format, "update_type_content");
+    }
+
+    /// <summary>
+    /// Creates one new PlcType from external-source text (.udt) or Simatic ML, through the same
+    /// import pipeline as <see cref="Import"/>.
+    ///
+    /// <para>
+    /// Strictly a create, with the update's refusals inverted: the path must be deterministic
+    /// ('PLC/Types/.../Name' or 'PLC/Units/Unit/Types/.../Name') so the destination group is
+    /// explicit, the type must not exist yet (GenerateBlocksFromSource would otherwise replace it),
+    /// and the declared name must match the path. Omitted content creates an empty type.
+    /// </para>
+    /// </summary>
+    public static PlcTypeImportResultInfo Create(
+        ProjectBase project,
+        string typePath,
+        string? sourceContent,
+        string format)
+    {
+        if (project is null) throw new ArgumentNullException(nameof(project));
+
+        var address = PlcTypeAddress.Parse(typePath);
+        if (!address.IsDeterministic)
+        {
+            throw new WorkerOperationException(
+                WorkerFailureCategories.ValidationError,
+                $"create_type needs a deterministic path such as 'PLC/Types/.../{address.TypeName}' "
+                + $"or 'PLC/Units/Unit/Types/.../{address.TypeName}'; '{typePath}' does not name the destination group.");
+        }
+
+        // Resolves the PLC and the destination group; a missing group is target_not_found.
+        var target = PlcTypeTargetResolver.ResolveForImport(project, address);
+        if (target.Type is not null)
+        {
+            throw new WorkerOperationException(
+                WorkerFailureCategories.ValidationError,
+                $"A PLC data type already exists at '{address.ToDisplayPath()}'. create_type never replaces "
+                + "a type; use update_type_content to change it.");
+        }
+
+        var content = string.IsNullOrEmpty(sourceContent)
+            ? EmptyTypeSource(address.TypeName, format)
+            : sourceContent!;
+
+        if (!PlcTypeSourcePreflight.TryReadDeclaredName(
+                content, format, SourceObjectKind.Type, out var declaredName, out var preflightError))
+        {
+            throw new WorkerOperationException(
+                WorkerFailureCategories.ValidationError,
+                preflightError ?? "The submitted document declares no object name.");
+        }
+
+        if (!string.Equals(declaredName, address.TypeName, StringComparison.Ordinal))
+        {
+            throw new WorkerOperationException(
+                WorkerFailureCategories.ValidationError,
+                $"The submitted document declares '{declaredName}' but the path names '{address.TypeName}'. "
+                + "create_type creates exactly the type its path names.");
+        }
+
+        return ApplyAndVerify(project, address, target, address.TypeName, content, format, "create_type");
+    }
+
+    /// <summary>The external source of an empty type, as TIA Portal exports one.</summary>
+    internal static string EmptyTypeSource(string typeName, string format)
+    {
+        if (!string.Equals(format, SourceFormatNames.Source, StringComparison.Ordinal))
+        {
+            throw new WorkerOperationException(
+                WorkerFailureCategories.ValidationError,
+                "create_type without content creates an empty type from external source; omit format or use format=source.");
+        }
+
+        return $"TYPE \"{typeName}\"\r\nVERSION : 0.1\r\n   STRUCT\r\n   END_STRUCT;\r\n\r\nEND_TYPE\r\n";
+    }
+
+    // 4-6. Apply the document, then verify, carrying whether the temporary project node made it back out.
+    private static PlcTypeImportResultInfo ApplyAndVerify(
+        ProjectBase project,
+        PlcTypeAddress address,
+        ResolvedTypeTarget target,
+        string typeName,
+        string sourceContent,
+        string format,
+        string operation)
+    {
         var outcome = string.Equals(format, SourceFormatNames.Xml, StringComparison.Ordinal)
             ? ImportXml(target, sourceContent)
-            : ImportSource(target, targetName, sourceContent);
+            : ImportSource(target, typeName, sourceContent);
 
-        // 6. Verify, carrying whether the temporary project node made it back out.
         var evidence = PlcTypePostconditionVerifier.BuildEvidence(project, address, format, outcome.ProjectNodeRemoved);
         PlcTypePostconditionVerifier.Verify(evidence);
 
         return new PlcTypeImportResultInfo
         {
-            Operation = "update_type_content",
+            Operation = operation,
             TypePath = address.ToDisplayPath(),
-            TypeName = targetName,
+            TypeName = typeName,
             Format = format,
             ProjectNodeRemoved = outcome.ProjectNodeRemoved,
             GeneratedObjectCount = outcome.GeneratedObjectCount

@@ -116,7 +116,10 @@ public static class PlcPayloadContract
         switch (name)
         {
             case "update_type_content":
+            case "create_type":
                 return CanonicalJson.NormalizeWorkerPayload<PlcTypeImportResultInfo>(payload).Element;
+            case "delete_type":
+                return CanonicalJson.NormalizeWorkerPayload<PlcTypeDeleteResultInfo>(payload).Element;
             case "update_block_logic":
                 // The worker's text ("Import succeeded.") is not forwarded; the typed outcome is the result.
                 var outcome = workerResult.BlockImportOutcome ?? throw new JsonException();

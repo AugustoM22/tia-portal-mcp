@@ -166,6 +166,8 @@ saves, downloads, or controls a PLC.
 |---|---|---|
 | `update_block_logic` | `blockPath`, `content`, `expectedContentHash` | `format` (`xml` by default; `source` for global DBs and SCL blocks) |
 | `update_type_content` | `typePath`, `content`, `expectedContentHash` | `format` (`source` by default) |
+| `create_type` | `typePath` (deterministic: `PLC/Types/.../Name` or `PLC/Units/Unit/Types/.../Name`) | `content`, `format` (`source` by default) |
+| `delete_type` | `typePath` | — |
 | `create_block` | `blockPath`, `blockType` | `language`, `obEventClass` |
 | `delete_block` | `blockPath` | — |
 | `create_block_group` / `delete_block_group` | `blockPath` | — |
@@ -206,6 +208,27 @@ two-segment `PLC/Name` (the PLC root group); a one-segment path is `validation_e
 is `target_not_found`. The PLC itself is resolved uniquely across every device, including grouped
 devices; several matches are `target_ambiguous`.
 
+### PLC data type creation and deletion
+
+`create_type` creates one PLC data type through the same import pipeline as `update_type_content`
+(external source or Simatic ML), with that operation's refusals inverted. The path must be
+deterministic, so the destination group is explicit; the group must exist (`target_not_found`
+otherwise) and is never created. A type already at that path is refused with `validation_error`
+before any import: the operation never replaces a type. The document must declare exactly the name
+the path ends with. Omitted `content` creates an empty type from external source, as TIA Portal
+exports one; omitted content with `format=xml` is `validation_error`. No `expectedContentHash` is
+taken. The PLC is compiled and the new type re-exported, as for a type update, and the verification
+reads it back as `contentHash`. A type created in a call cannot be updated or deleted later in the
+same call (`validation_error`): read it after the call.
+
+`delete_type` resolves the type like `update_type_content` (missing is `target_not_found`, an
+ambiguous legacy name `target_ambiguous`), proven at planning by an export; it fires the
+`plc_deletes_type` info guard. No compile runs: blocks and types still using the type stop
+compiling, which `compile_check` shows. The postcondition only proves the type is gone.
+
+Both operations are fork additions verified with the stub build and FakeWorker tests; live V21
+behavior is recorded separately when performed.
+
 ### Content writes
 
 `update_block_logic` and `update_type_content` take the whole document as `content`, together with
@@ -239,6 +262,7 @@ rejections, with the exact namespace directions and limits below (see [Failures 
 | `plc_state_unverifiable` | block | The PLC inventory is incomplete, the update or delete target or what a delete removes is unreadable, the user-constant value an update replaces is unreadable, or the content cannot be exported. Unreadable evidence is never treated as empty. |
 | `plc_ob_singleton_exists` | block | `create_block` creates an OB of a singleton event class and the PLC already holds that class's OB number, or an earlier item in the same call creates it. The message names the class, the number and the existing block. |
 | `plc_deletes_block` | info | `delete_block` removes the block and its content. |
+| `plc_deletes_type` | info | `delete_type` removes the PLC data type; blocks and types that still use it stop compiling. |
 | `plc_deletes_group_contents` | info | `delete_block_group` removes every block and group inside it; the effect lists them. |
 | `plc_deletes_table_contents` | info | `delete_tag_table` removes its tags and user constants. |
 | `plc_address_overlap` | info | The requested logical address is already used by another tag; TIA Portal allows the overlap. |

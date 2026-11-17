@@ -122,6 +122,33 @@ public partial class OpennessWorkerClient
             string.Empty);
     }
 
+    /// <summary>Creates a PLC data type; null content creates an empty one.</summary>
+    public Task<WorkerCallResult> CreateTypeAsync(string typePath, string? sourceContent, string? format)
+    {
+        return SendBoundProjectRequestAsync(
+            "create_type",
+            null,
+            request =>
+            {
+                request.TypePath = typePath;
+                request.Content = sourceContent;
+                request.Format = format;
+            },
+            string.Empty);
+    }
+
+    public Task<WorkerCallResult> DeleteTypeAsync(string typePath)
+    {
+        return SendBoundProjectRequestAsync(
+            "delete_type",
+            null,
+            request =>
+            {
+                request.TypePath = typePath;
+            },
+            "{}");
+    }
+
     public Task<WorkerCallResult> ListTagTablesAsync(
         string? plcName,
         string? tableName = null,

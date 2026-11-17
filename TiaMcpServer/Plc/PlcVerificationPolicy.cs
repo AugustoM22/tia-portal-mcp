@@ -11,7 +11,7 @@ public sealed class PlcVerificationPolicy(OpennessWorkerClient client, IReadOnly
     public string ReadTool => "plc_read";
 
     public bool HasReadBack(PlcOperationRequest item)
-        => item.Operation is "update_block_logic" or "update_type_content";
+        => item.Operation is "update_block_logic" or "update_type_content" or "create_type";
 
     public static async Task<PlcWriteVerification> VerifyAsync(OpennessWorkerClient client,
         IReadOnlyList<PlcOperationRequest> items, IReadOnlyDictionary<string, PlcWriteEffect> effects,

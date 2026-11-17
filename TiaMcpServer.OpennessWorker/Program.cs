@@ -181,6 +181,8 @@ internal static partial class Program
                 "update_block_logic"  => PlcWorkerDispatch.UpdateBlockLogic(request),
                 "get_type_content"    => PlcWorkerDispatch.GetTypeContent(request),
                 "update_type_content" => PlcWorkerDispatch.UpdateTypeContent(request),
+                "create_type"         => PlcWorkerDispatch.CreateType(request),
+                "delete_type"         => PlcWorkerDispatch.DeleteType(request),
                 "list_tag_tables"     => PlcWorkerDispatch.ListTagTables(request),
                 "compile_check"       => PlcWorkerDispatch.CompileCheck(request),
                 "create_tag_table"    => PlcWorkerDispatch.CreateTagTable(request),

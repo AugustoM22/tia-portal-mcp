@@ -135,6 +135,8 @@ public static class OperationPolicyCatalog
             // ProjectMutation (NOT read-only safe)
             ["update_block_logic"] = OperationCapability.ProjectMutation,
             ["update_type_content"] = OperationCapability.ProjectMutation,
+            ["create_type"] = OperationCapability.ProjectMutation,
+            ["delete_type"] = OperationCapability.ProjectMutation,
             ["create_block"] = OperationCapability.ProjectMutation,
             ["delete_block"] = OperationCapability.ProjectMutation,
             ["create_block_group"] = OperationCapability.ProjectMutation,
