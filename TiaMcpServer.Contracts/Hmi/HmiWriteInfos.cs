@@ -25,6 +25,34 @@ public sealed class HmiWriteRequestInfo
     public int? Priority { get; set; }
     public int? ConditionValueInt32 { get; set; }
     public double? ConditionValueDouble { get; set; }
+    // Screens, screen items and connections.
+    public string? ScreenName { get; set; }
+    public string? ItemName { get; set; }
+    public string? ItemType { get; set; }
+    /// <summary>Canonical JSON object of attribute paths to values (for example <c>{"Left":10,"Font.Size":20}</c>).</summary>
+    public string? PropertiesJson { get; set; }
+    public List<HmiDynamizationInfo>? Dynamizations { get; set; }
+    public List<HmiEventInfo>? Events { get; set; }
+    public string? PartnerDevice { get; set; }
+    public string? LocalInterface { get; set; }
+    public string? PartnerInterface { get; set; }
+    public bool? StartScreen { get; set; }
+}
+
+/// <summary>A tag dynamization of one screen-item property.</summary>
+public sealed class HmiDynamizationInfo
+{
+    public string Property { get; set; } = string.Empty;
+    public string Tag { get; set; } = string.Empty;
+    public bool? ReadOnly { get; set; }
+}
+
+/// <summary>A JavaScript event handler of a screen or screen item.</summary>
+public sealed class HmiEventInfo
+{
+    public string Event { get; set; } = string.Empty;
+    public string Script { get; set; } = string.Empty;
+    public bool? Async { get; set; }
 }
 
 public sealed record HmiWriteOutcomeInfo

@@ -34,6 +34,9 @@ public sealed class HmiVerificationPolicy(IReadOnlyDictionary<string, HmiWriteEf
             "TagTable" => $"{prefix}table\n{upper}",
             "Tag" => $"{prefix}tag\n{upper}",
             "Alarm" => $"{prefix}alarm\n{target.AlarmKind}\n{upper}",
+            "Connection" => $"{prefix}connection\n{upper}",
+            "Screen" => $"{prefix}screen\n{upper}",
+            "ScreenItem" => $"{prefix}item\n{target.TableName?.ToUpperInvariant()}\n{upper}",
             _ => throw new NotSupportedException(),
         };
     }

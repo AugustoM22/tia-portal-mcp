@@ -32,4 +32,32 @@ public sealed class HmiWriteOperationRequest : IOperationBatchItem
     public int? BitNumber { get; set; }
     public int? Priority { get; set; }
     public JsonElement? ConditionValue { get; set; }
+    public string? ScreenName { get; set; }
+    public string? ItemName { get; set; }
+    public string? ItemType { get; set; }
+    public JsonElement? Properties { get; set; }
+    public List<HmiDynamizationRequest>? Dynamizations { get; set; }
+    public List<HmiEventRequest>? Events { get; set; }
+    public string? PartnerDevice { get; set; }
+    public string? LocalInterface { get; set; }
+    public string? PartnerInterface { get; set; }
+    public bool? StartScreen { get; set; }
+}
+
+/// <summary>Binds one screen-item property to an HMI tag.</summary>
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed class HmiDynamizationRequest
+{
+    public string? Property { get; set; }
+    public string? Tag { get; set; }
+    public bool? ReadOnly { get; set; }
+}
+
+/// <summary>A JavaScript handler for one event of a screen or screen item.</summary>
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed class HmiEventRequest
+{
+    public string? Event { get; set; }
+    public string? Script { get; set; }
+    public bool? Async { get; set; }
 }

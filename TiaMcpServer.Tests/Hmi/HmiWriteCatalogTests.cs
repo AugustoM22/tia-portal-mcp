@@ -57,7 +57,7 @@ public class HmiWriteCatalogTests
     {
         var methods = HmiWriteCatalog.OperationNames.Select(HmiOperationCatalog.WorkerMethod).ToList();
         Assert.True(methods.ToHashSet(StringComparer.Ordinal).SetEquals(HmiWriteMethods.All));
-        Assert.Equal(9, methods.Count);
+        Assert.Equal(17, methods.Count);
     }
 
     private static HmiWriteOperationRequest Read(string fields) =>
@@ -218,6 +218,14 @@ public class HmiWriteCatalogTests
     [InlineData("create_alarm", "AlarmKind AlarmName TriggerTag", "Condition ConditionValue AlarmClass Priority EventText InfoText BitNumber TriggerMode")]
     [InlineData("update_alarm", "AlarmKind AlarmName", "NewName TriggerTag Condition ConditionValue AlarmClass Priority EventText InfoText BitNumber TriggerMode")]
     [InlineData("delete_alarm", "AlarmKind AlarmName", "")]
+    [InlineData("create_connection", "Connection PartnerDevice", "LocalInterface PartnerInterface")]
+    [InlineData("delete_connection", "Connection", "")]
+    [InlineData("create_screen", "ScreenName", "Properties Events StartScreen")]
+    [InlineData("update_screen", "ScreenName NewName", "Properties Events StartScreen")]
+    [InlineData("delete_screen", "ScreenName", "")]
+    [InlineData("create_screen_item", "ScreenName ItemName ItemType", "Properties Dynamizations Events")]
+    [InlineData("update_screen_item", "ScreenName ItemName NewName", "Properties Dynamizations Events")]
+    [InlineData("delete_screen_item", "ScreenName ItemName", "")]
     public void OperationFieldSets_RejectEveryForeignField(string operation, string required, string optional)
     {
         var allowed = (required + " " + optional).Split(' ');
@@ -235,11 +243,19 @@ public class HmiWriteCatalogTests
                 TriggerTag = required.Contains("TriggerTag") ? "Tag" : null,
                 NewName = required.Contains("NewName") ? "Renamed" : null,
                 DataType = operation == "create_tag" ? "Bool" : null,
+                Connection = required.Contains("Connection") ? "Conn" : null,
+                PartnerDevice = required.Contains("PartnerDevice") ? "PLC_1" : null,
+                ScreenName = required.Contains("ScreenName") ? "Screen" : null,
+                ItemName = required.Contains("ItemName") ? "Item" : null,
+                ItemType = required.Contains("ItemType") ? "HmiButton" : null,
             };
             Assert.True(HmiWriteCatalog.ValidateWrite([op]).IsValid, operation);
             object value = property.PropertyType == typeof(string) ? "Extra"
                 : property.PropertyType == typeof(List<HmiText>) ? new List<HmiText> { new("en-US", "text") }
                 : property.PropertyType == typeof(JsonElement?) ? JsonSerializer.SerializeToElement(50)
+                : property.PropertyType == typeof(bool?) ? true
+                : property.PropertyType == typeof(List<HmiDynamizationRequest>) ? new List<HmiDynamizationRequest> { new() { Property = "ProcessValue", Tag = "T" } }
+                : property.PropertyType == typeof(List<HmiEventRequest>) ? new List<HmiEventRequest> { new() { Event = "Tapped", Script = "x" } }
                 : 1;
             property.SetValue(op, value);
             Assert.False(HmiWriteCatalog.ValidateWrite([op]).IsValid, operation + "." + property.Name);
@@ -284,7 +300,7 @@ public class HmiWriteCatalogTests
         Assert.Same(decoded.HmiWriteOutcome, (result with { Error = "identity changed" }).HmiWriteOutcome);
         Assert.Null(result.HmiWriteOutcome.CleanupMessage);
     }    [Theory]
-    [InlineData(TiaMcpServer.Contracts.Safety.McpAccessMode.ReadOnly, 9)]
+    [InlineData(TiaMcpServer.Contracts.Safety.McpAccessMode.ReadOnly, 17)]
     [InlineData(TiaMcpServer.Contracts.Safety.McpAccessMode.ReadWrite, 0)]
     [InlineData(TiaMcpServer.Contracts.Safety.McpAccessMode.Full, 0)]
     public void AccessMode_UsesSharedPolicy(TiaMcpServer.Contracts.Safety.McpAccessMode mode, int denied)

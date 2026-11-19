@@ -27,6 +27,21 @@ public static class HmiWriteCatalog
         ["create_alarm"] = Op("alarmKind alarmName triggerTag", "condition conditionValue alarmClass priority eventText infoText bitNumber triggerMode"),
         ["update_alarm"] = Op("alarmKind alarmName", "newName triggerTag condition conditionValue alarmClass priority eventText infoText bitNumber triggerMode"),
         ["delete_alarm"] = Op("alarmKind alarmName"),
+        ["create_connection"] = Op("connection partnerDevice", "localInterface partnerInterface"),
+        ["delete_connection"] = Op("connection"),
+        ["create_screen"] = Op("screenName", "properties events startScreen"),
+        ["update_screen"] = Op("screenName", "newName properties events startScreen"),
+        ["delete_screen"] = Op("screenName"),
+        ["create_screen_item"] = Op("screenName itemName itemType", "properties dynamizations events"),
+        ["update_screen_item"] = Op("screenName itemName", "newName properties dynamizations events"),
+        ["delete_screen_item"] = Op("screenName itemName"),
+    };
+
+    /// <summary>Screen-item types the worker resolves in the Widgets, Shapes, Controls and Screens namespaces.</summary>
+    public static IReadOnlyList<string> ScreenItemTypes { get; } = new[]
+    {
+        "HmiButton", "HmiText", "HmiIOField", "HmiSymbolicIOField", "HmiToggleSwitch", "HmiCheckBoxGroup", "HmiTextBox",
+        "HmiListBox", "HmiBar", "HmiClock", "HmiRectangle", "HmiCircle", "HmiLine", "HmiAlarmControl", "HmiScreenWindow",
     };
 
     private static readonly (string Name, Func<HmiWriteOperationRequest, object?> Get)[] Fields =
@@ -52,6 +67,16 @@ public static class HmiWriteCatalog
         ("bitNumber", r => r.BitNumber),
         ("priority", r => r.Priority),
         ("conditionValue", r => r.ConditionValue),
+        ("screenName", r => r.ScreenName),
+        ("itemName", r => r.ItemName),
+        ("itemType", r => r.ItemType),
+        ("properties", r => r.Properties),
+        ("dynamizations", r => r.Dynamizations),
+        ("events", r => r.Events),
+        ("partnerDevice", r => r.PartnerDevice),
+        ("localInterface", r => r.LocalInterface),
+        ("partnerInterface", r => r.PartnerInterface),
+        ("startScreen", r => r.StartScreen),
     };
 
     public static IReadOnlyList<string> OperationNames { get; } = Specs.Keys.ToArray();
@@ -84,9 +109,11 @@ public static class HmiWriteCatalog
             if (r.NewName is not null && !ValidName(r.NewName)) Error("'newName' is invalid.");
             var createdName = r.Operation switch
             {
-                "create_tag_table" => r.TableName, "create_tag" => r.TagName, "create_alarm" => r.AlarmName, _ => null,
+                "create_tag_table" => r.TableName, "create_tag" => r.TagName, "create_alarm" => r.AlarmName,
+                "create_connection" => r.Connection, "create_screen" => r.ScreenName, "create_screen_item" => r.ItemName, _ => null,
             };
             if (createdName is not null && !ValidName(createdName)) Error("New object name is invalid.");
+            ValidateScreenFields(r, Error);
             if (r.Operation is "create_tag" or "update_tag")
             {
                 if (r.Connection is not null && r.PlcTag is null) Error("'connection' requires 'plcTag'.");
@@ -127,6 +154,61 @@ public static class HmiWriteCatalog
         return errors.Count == 0
             ? OperationValidation.Valid
             : OperationValidation.Invalid(WorkerFailureCategories.ValidationError, string.Join("\n", errors));
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex AttributePath =
+        new(@"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)*$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    private static readonly System.Text.RegularExpressions.Regex Identifier =
+        new(@"^[A-Za-z][A-Za-z0-9_]*$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    private static void ValidateScreenFields(HmiWriteOperationRequest r, Action<string> error)
+    {
+        if (r.ItemType is not null && !ScreenItemTypes.Contains(r.ItemType, StringComparer.Ordinal))
+            error($"'itemType' must be one of: {string.Join(", ", ScreenItemTypes)}.");
+        if (r.Properties is { } properties)
+        {
+            if (properties.ValueKind != JsonValueKind.Object) error("'properties' must be a JSON object of attribute paths to values.");
+            else
+            {
+                if (!properties.EnumerateObject().Any()) error("'properties' must not be empty.");
+                foreach (var property in properties.EnumerateObject())
+                {
+                    if (!AttributePath.IsMatch(property.Name)) error($"Property '{property.Name}' is not an attribute path such as 'Left' or 'Font.Size'.");
+                    if (property.Name == "Name") error("Rename with 'newName', not properties.Name.");
+                    var value = property.Value;
+                    var ok = value.ValueKind is JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False
+                        || value.ValueKind == JsonValueKind.Object && value.EnumerateObject().All(t => t.Value.ValueKind == JsonValueKind.String && CultureNameRules.CanonicalName(t.Name) is not null);
+                    if (!ok) error($"Property '{property.Name}' needs a string, number, boolean or culture-to-text object.");
+                }
+            }
+        }
+        if (r.Dynamizations is { } dynamizations)
+        {
+            if (dynamizations.Count == 0) error("'dynamizations' must not be empty.");
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var d in dynamizations)
+            {
+                if (d is null || d.Property is null || !Identifier.IsMatch(d.Property) || string.IsNullOrWhiteSpace(d.Tag))
+                { error("Each dynamization needs 'property' (an attribute name) and a nonblank 'tag'."); continue; }
+                if (!seen.Add(d.Property)) error($"Dynamization property '{d.Property}' is repeated.");
+            }
+        }
+        if (r.Events is { } events)
+        {
+            if (events.Count == 0) error("'events' must not be empty.");
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var e in events)
+            {
+                if (e is null || e.Event is null || !Identifier.IsMatch(e.Event) || e.Script is null)
+                { error("Each event needs 'event' (for example Tapped or Loaded) and 'script'."); continue; }
+                if (!seen.Add(e.Event)) error($"Event '{e.Event}' is repeated.");
+            }
+        }
+        if (r.StartScreen == false) error("'startScreen' can only be true; make another screen the start screen instead.");
+        if (r.Operation == "update_screen" && r.NewName is null && r.Properties is null && r.Events is null && r.StartScreen is null)
+            error("update_screen needs newName, properties, events or startScreen.");
+        if (r.Operation == "update_screen_item" && r.NewName is null && r.Properties is null && r.Dynamizations is null && r.Events is null)
+            error("update_screen_item needs newName, properties, dynamizations or events.");
     }
 
     private static bool ValidName(string name) =>
@@ -178,6 +260,16 @@ public static class HmiWriteCatalog
             EventText = r.EventText?.Select(t => new HmiText(t.Culture, WrapEventText(t.Text))).ToList(),
             BitNumber = r.BitNumber,
             Priority = r.Priority,
+            ScreenName = r.ScreenName,
+            ItemName = r.ItemName,
+            ItemType = r.ItemType,
+            PropertiesJson = r.Properties?.GetRawText(),
+            Dynamizations = r.Dynamizations?.Select(d => new HmiDynamizationInfo { Property = d.Property!, Tag = d.Tag!, ReadOnly = d.ReadOnly }).ToList(),
+            Events = r.Events?.Select(e => new HmiEventInfo { Event = e.Event!, Script = e.Script!, Async = e.Async }).ToList(),
+            PartnerDevice = r.PartnerDevice,
+            LocalInterface = r.LocalInterface,
+            PartnerInterface = r.PartnerInterface,
+            StartScreen = r.StartScreen,
         };
         if (r.ConditionValue is { } number)
         {

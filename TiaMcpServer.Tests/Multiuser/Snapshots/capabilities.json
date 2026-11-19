@@ -121,6 +121,38 @@
       "applicability": "projectContent"
     },
     {
+      "operation": "hmi_create_connection",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_connection",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_screen",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_update_screen",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_screen",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_screen_item",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_update_screen_item",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_screen_item",
+      "applicability": "projectContent"
+    },
+    {
       "operation": "update_block_logic",
       "applicability": "projectContent"
     },
@@ -359,6 +391,38 @@
       "applicability": "projectContent"
     },
     {
+      "operation": "hmi_create_connection",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_connection",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_screen",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_update_screen",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_screen",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_screen_item",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_update_screen_item",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_screen_item",
+      "applicability": "projectContent"
+    },
+    {
       "operation": "update_block_logic",
       "applicability": "projectContent"
     },
@@ -594,6 +658,38 @@
     },
     {
       "operation": "hmi_delete_alarm",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_create_connection",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_delete_connection",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_create_screen",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_update_screen",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_delete_screen",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_create_screen_item",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_update_screen_item",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_delete_screen_item",
       "applicability": "notYetDelivered"
     },
     {

@@ -33,7 +33,7 @@ public class ReadOnlyModeTests
         var actual = OperationPolicyCatalog.AllOperationNames
             .Where(n => n.StartsWith("hmi_", StringComparison.Ordinal))
             .ToHashSet(StringComparer.Ordinal);
-        Assert.Equal(29, expected.Count);
+        Assert.Equal(37, expected.Count);
         Assert.True(expected.SetEquals(actual));
         foreach (var op in TiaMcpServer.Hmi.HmiWriteCatalog.OperationNames)
             Assert.Equal(OperationCapability.ProjectMutation,
@@ -289,6 +289,14 @@ public class ReadOnlyModeTests
     [InlineData("hmi_create_alarm")]
     [InlineData("hmi_update_alarm")]
     [InlineData("hmi_delete_alarm")]
+    [InlineData("hmi_create_connection")]
+    [InlineData("hmi_delete_connection")]
+    [InlineData("hmi_create_screen")]
+    [InlineData("hmi_update_screen")]
+    [InlineData("hmi_delete_screen")]
+    [InlineData("hmi_create_screen_item")]
+    [InlineData("hmi_update_screen_item")]
+    [InlineData("hmi_delete_screen_item")]
     [InlineData("vci_create_workspace")]
     [InlineData("vci_delete_workspace")]
     [InlineData("vci_export")]

@@ -21,6 +21,14 @@ public static class HmiWriteDispatch
                 "hmi_create_alarm" => HmiAlarmWriter.Create(software, write),
                 "hmi_update_alarm" => HmiAlarmWriter.Update(software, write),
                 "hmi_delete_alarm" => HmiAlarmWriter.Delete(software, write),
+                "hmi_create_connection" => HmiConnectionWriter.Create(project, software, write),
+                "hmi_delete_connection" => HmiConnectionWriter.Delete(software, write),
+                "hmi_create_screen" => HmiScreenWriter.CreateScreen(software, write),
+                "hmi_update_screen" => HmiScreenWriter.UpdateScreen(software, write),
+                "hmi_delete_screen" => HmiScreenWriter.DeleteScreen(software, write),
+                "hmi_create_screen_item" => HmiScreenWriter.CreateItem(software, write),
+                "hmi_update_screen_item" => HmiScreenWriter.UpdateItem(software, write),
+                "hmi_delete_screen_item" => HmiScreenWriter.DeleteItem(software, write),
                 _ => throw new WorkerOperationException(WorkerFailureCategories.ValidationError, $"Unsupported HMI worker method '{method}'."),
             };
         }

@@ -60,7 +60,11 @@ internal sealed class HmiWorkingState
     private void Touch(HmiTargetIdentity target, string id) => _touches[Key(target)] = (++_sequence, id);
     private HmiTargetIdentity Identity(string kind, string name, string? alarmKind = null, string? table = null, string? group = null)
         => new(kind, _evidence.HmiName, name, alarmKind, table, group);
-    private HmiTargetIdentity RequestedIdentity(HmiWriteOperationRequest r) => r.Operation.Contains("tag_table", StringComparison.Ordinal)
+    private HmiTargetIdentity RequestedIdentity(HmiWriteOperationRequest r) => r.Operation.EndsWith("_connection", StringComparison.Ordinal)
+        ? Identity("Connection", r.Connection!)
+        : r.Operation.EndsWith("_screen_item", StringComparison.Ordinal) ? Identity("ScreenItem", r.ItemName!, table: r.ScreenName)
+        : r.Operation.EndsWith("_screen", StringComparison.Ordinal) ? Identity("Screen", r.ScreenName!)
+        : r.Operation.Contains("tag_table", StringComparison.Ordinal)
         ? Identity("TagTable", r.TableName!, table: r.TableName, group: r.GroupPath)
         : r.Operation.EndsWith("alarm", StringComparison.Ordinal) ? Identity("Alarm", r.AlarmName!, r.AlarmKind)
         : Identity("Tag", r.TagName!, table: r.TableName);
@@ -96,6 +100,23 @@ internal sealed class HmiWorkingState
         {
             foreach (var text in requested ?? new())
                 changes.Add(new($"{field}[{text.Culture}]", current?.FirstOrDefault(t => Names.Equals(t.Culture, text.Culture))?.Text, text.Text, false));
+        }
+        if (target.Kind is "Connection" or "Screen" or "ScreenItem")
+        {
+            // Screens, items and connections are resolved by Portal at mutation; planning reads no evidence for them.
+            if (target.Kind == "ScreenItem") dependencies.Add(Identity("Screen", r.ScreenName!));
+            Change("itemType", null, r.ItemType); Change("partnerDevice", null, r.PartnerDevice);
+            Change("localInterface", null, r.LocalInterface); Change("partnerInterface", null, r.PartnerInterface);
+            if (r.Properties is { ValueKind: JsonValueKind.Object } properties)
+                foreach (var property in properties.EnumerateObject())
+                    changes.Add(new($"properties.{property.Name}", null, property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() : property.Value.GetRawText(), false));
+            foreach (var d in r.Dynamizations ?? new()) changes.Add(new($"dynamization[{d.Property}]", null, d.Tag, false));
+            foreach (var e in r.Events ?? new()) changes.Add(new($"event[{e.Event}]", null, $"script ({e.Script?.Length ?? 0} characters)", false));
+            if (r.StartScreen == true) changes.Add(new("startScreen", null, "true", false));
+            Change("name", create ? null : target.Name, r.NewName ?? (create ? target.Name : null));
+            dependencies.Add(target);
+            if (r.NewName is not null) dependencies.Add(target with { Name = r.NewName });
+            return new(r.Operation, target, changes, null, Dependency(dependencies));
         }
         if (target.Kind == "TagTable")
         {
@@ -225,6 +246,7 @@ internal sealed class HmiWorkingState
                     alarm.Name = r.NewName; renamed = true;
                 }
                 TouchAlarmReferences(alarm, r.OperationId); break;
+            case "update_screen" or "update_screen_item": renamed = r.NewName is not null; break;
             case "delete_alarm":
                 var removedAlarm = Alarm(r.AlarmName!, r.AlarmKind);
                 TouchAlarmReferences(removedAlarm, r.OperationId);
