@@ -44,9 +44,11 @@ public static class HmiConnectionWriter
                 Set(outcome, "LocalConnectionName", () => ((IEngineeringObject)c).SetAttribute("LocalConnectionName", name));
                 Set(outcome, "HmiConnection", () =>
                 {
-                    if (!software.Connections.Any(x => Names.Equals(x.Name, name)))
-                        throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed,
+                    var hmiConnection = software.Connections.FirstOrDefault(x => Names.Equals(x.Name, name))
+                        ?? throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed,
                             $"The network connection was created but no HMI connection named '{name}' appeared.");
+                    // Openness creates the HMI side disabled at startup; a runtime would then never connect.
+                    ((IEngineeringObject)hmiConnection).SetAttribute("DisabledAtStartup", false);
                 });
             });
     }

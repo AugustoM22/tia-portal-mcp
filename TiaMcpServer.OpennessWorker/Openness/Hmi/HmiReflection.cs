@@ -120,15 +120,23 @@ internal static class HmiReflection
     private static IReadOnlyList<HmiText> Texts(JsonElement value, MultilingualText text, string path)
     {
         if (value.ValueKind == JsonValueKind.Object)
-            return value.EnumerateObject().Select(p => new HmiText(p.Name, p.Value.GetString() ?? string.Empty)).ToList();
+            return value.EnumerateObject().Select(p => new HmiText(p.Name, Markup(p.Value.GetString() ?? string.Empty))).ToList();
         if (value.ValueKind == JsonValueKind.String)
         {
             // A plain string sets every culture of the text, which keeps single-language projects simple.
-            var plain = value.GetString() ?? string.Empty;
+            var plain = Markup(value.GetString() ?? string.Empty);
             return text.Items.Select(i => new HmiText(i.Language.Culture.Name, plain)).ToList();
         }
         throw new WorkerOperationException(WorkerFailureCategories.ValidationError, $"Text attribute '{path}' needs a string or a culture object.");
     }
+
+    /// <summary>
+    /// Unified screen texts are rich text: V21 rejects a plain string ("invalid format"). Plain text is escaped
+    /// and wrapped as one paragraph; text that already starts with &lt;body is passed through unchanged.
+    /// </summary>
+    internal static string Markup(string text)
+        => text.TrimStart().StartsWith("<body", StringComparison.OrdinalIgnoreCase) ? text
+            : "<body><p>" + text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;") + "</p></body>";
 
     private static object Convert(JsonElement value, Type type, string path)
     {
