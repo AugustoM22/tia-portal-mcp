@@ -44,11 +44,12 @@ public static class HmiConnectionWriter
                 Set(outcome, "LocalConnectionName", () => ((IEngineeringObject)c).SetAttribute("LocalConnectionName", name));
                 Set(outcome, "HmiConnection", () =>
                 {
-                    var hmiConnection = software.Connections.FirstOrDefault(x => Names.Equals(x.Name, name))
-                        ?? throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed,
+                    // Keep the DisabledAtStartup value Openness assigns (true on V21). A connection drawn in the
+                    // TIA editor carries the same value and communicates; forcing it to false (as 131b20a4 did)
+                    // left the Unified runtime never opening the connection ("Connection lost", bad tag quality).
+                    if (!software.Connections.Any(x => Names.Equals(x.Name, name)))
+                        throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed,
                             $"The network connection was created but no HMI connection named '{name}' appeared.");
-                    // Openness creates the HMI side disabled at startup; a runtime would then never connect.
-                    ((IEngineeringObject)hmiConnection).SetAttribute("DisabledAtStartup", false);
                 });
             });
     }
